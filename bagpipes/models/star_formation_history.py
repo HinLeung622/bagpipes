@@ -140,7 +140,7 @@ class star_formation_history:
         self.mass_weighted_age /= np.sum(self.sfh*self.age_widths)
 
         self.mass_weighted_zmet = np.sum(self.live_frac_grid*self.ceh.grid,
-                                        axis=1)
+                                        axis=(0,2))
         self.mass_weighted_zmet /= np.sum(self.live_frac_grid*self.ceh.grid)
         self.mass_weighted_zmet *= config.metallicities
         self.mass_weighted_zmet = np.sum(self.mass_weighted_zmet)
@@ -165,15 +165,17 @@ class star_formation_history:
             self.tquench = tunivs[quench_ind]*10**-9
 
     def _resample_live_frac_grid(self):
-        self.live_frac_grid = np.zeros((config.metallicities.shape[0],
+        self.live_frac_grid = np.zeros((config.alpha_Fe.shape[0],
+                                        config.metallicities.shape[0],
                                         config.age_sampling.shape[0]))
 
         raw_live_frac_grid = config.live_frac
 
-        for i in range(config.metallicities.shape[0]):
-            self.live_frac_grid[i, :] = np.interp(config.age_sampling,
-                                                  config.raw_stellar_ages,
-                                                  raw_live_frac_grid[:, i])
+        for i in range(config.alpha_Fe.shape[0]):
+            for j in range(config.metallicities.shape[0]):
+                self.live_frac_grid[i, j, :] = np.interp(config.age_sampling,
+                                                         config.raw_stellar_ages,
+                                                         raw_live_frac_grid[i, j, :])
 
     def massformed_at_redshift(self, redshift):
         t_hubble_at_z = np.interp(redshift, utils.z_array, utils.age_at_z)

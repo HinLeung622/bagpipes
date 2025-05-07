@@ -4,29 +4,34 @@ import numpy as np
 
 from .. import config
 
-
 class chemical_enrichment_history(object):
 
     def __init__(self, model_comp, sfh_weights):
 
         self.zmet_vals = config.metallicities
         self.zmet_lims = config.metallicity_bins
+        self.alpha_Fe_vals = config.alpha_Fe
+        self.alpha_Fe_lims = config.alpha_Fe_bins
 
         self.grid_comp = {}
-        self.grid = np.zeros((self.zmet_vals.shape[0],
-                              config.age_sampling.shape[0]))
+        self.grid = np.zeros((self.alpha_Fe_vals.shape[0],
+                                self.zmet_vals.shape[0],
+                                config.age_sampling.shape[0]))
 
         for comp in list(sfh_weights):
             if comp != "total":
-                if all(zmet_key not in model_comp[comp].keys() for zmet_key in ['metallicity_type', 'metallicity_scatter']):
-                    self.grid_comp[comp] = self.delta(model_comp[comp],
+                this_model_comp = model_comp[comp].copy()
+                if "alpha_Fe" not in this_model_comp.keys():
+                    this_model_comp["alpha_Fe"] = 0.0
+                if all(zmet_key not in this_model_comp.keys() for zmet_key in ['metallicity_type', 'metallicity_scatter']):
+                    self.grid_comp[comp] = self.delta(this_model_comp,
                                                       sfh_weights[comp])
                 elif 'metallicity_type' in model_comp[comp].keys():
-                    self.grid_comp[comp] = getattr(self, model_comp[comp]['metallicity_type']
-                                                   )(model_comp[comp],sfh_weights[comp])
+                    self.grid_comp[comp] = getattr(self, this_model_comp['metallicity_type']
+                                                   )(this_model_comp,sfh_weights[comp])
                 else:
-                    self.grid_comp[comp] = getattr(self, model_comp[comp]['metallicity_scatter']
-                                                   )(model_comp[comp],sfh_weights[comp])
+                    self.grid_comp[comp] = getattr(self, this_model_comp['metallicity_scatter']
+                                                   )(this_model_comp,sfh_weights[comp])
 
                 self.grid += self.grid_comp[comp]
 
@@ -93,18 +98,13 @@ class chemical_enrichment_history(object):
             grid[:, mask] = np.expand_dims(weights, axis=1)
 
         return grid*sfh
+    
+    def _interp(self, val, grid):
+        weights = np.zeros(grid.shape[0])
 
-    def delta(self, comp, sfh, zmet=None, nested=False):
-        """ Delta function metallicity history. """
+        high_ind = grid[grid < val].shape[0]
 
-        if zmet is None:
-            zmet = comp["metallicity"]
-
-        weights = np.zeros(self.zmet_vals.shape[0])
-
-        high_ind = self.zmet_vals[self.zmet_vals < zmet].shape[0]
-
-        if high_ind == self.zmet_vals.shape[0]:
+        if high_ind == grid.shape[0]:
             weights[-1] = 1.
 
         elif high_ind == 0:
@@ -112,67 +112,90 @@ class chemical_enrichment_history(object):
 
         else:
             low_ind = high_ind - 1
-            width = (self.zmet_vals[high_ind] - self.zmet_vals[low_ind])
-            weights[high_ind] = (zmet - self.zmet_vals[low_ind])/width
+            width = (grid[high_ind] - grid[low_ind])
+            weights[high_ind] = (val - grid[low_ind])/width
             weights[high_ind-1] = 1 - weights[high_ind]
 
-        if nested:
-            return weights
-        else:
-            return np.expand_dims(weights, axis=1)*np.expand_dims(sfh, axis=0)
+        return weights
 
-    def exp(self, comp, sfh, zmet=None, nested=False):
+    def delta(self, comp, sfh, zmet=None, alpha_Fe=None, nested=False):
+        """ Delta function metallicity history. """
+
+        if zmet is None:
+            zmet = comp["metallicity"]
+        if alpha_Fe is None:
+            alpha_Fe = comp["alpha_Fe"]
+
+        weights_zmet = self._interp(zmet, self.zmet_vals)
+        weights_alpha_Fe = self._interp(alpha_Fe, self.alpha_Fe_vals)
+
+        if nested:
+            return np.expand_dims(weights_alpha_Fe, axis=1)*np.expand_dims(weights_zmet, axis=0)
+        else:
+            return np.expand_dims(weights_alpha_Fe, axis=(1,2))*np.expand_dims(weights_zmet, axis=(0,2))*np.expand_dims(sfh, axis=(0,1))
+
+    def exp(self, comp, sfh, zmet=None, alpha_Fe=None, nested=False):
         """ P(Z) = exp(-z/z_mean). Currently no age dependency! """
 
         if zmet is None:
             mean_zmet = comp["metallicity"]
         else:
             mean_zmet = zmet
+        if alpha_Fe is None:
+            alpha_Fe = comp["alpha_Fe"]
 
-        weights = np.zeros(self.zmet_vals.shape[0])
+        weights_zmet = np.zeros(self.zmet_vals.shape[0])
 
         vals_hr = np.arange(0., 10., 0.01) + 0.005
 
         factors_hr = (1./mean_zmet)*np.exp(-vals_hr/mean_zmet)
 
-        for i in range(weights.shape[0]):
+        for i in range(weights_zmet.shape[0]):
             lowmask = (vals_hr > self.zmet_lims[i])
             highmask = (vals_hr < self.zmet_lims[i+1])
-            weights[i] = np.sum(0.01*factors_hr[lowmask & highmask])
+            weights_zmet[i] = np.sum(0.01*factors_hr[lowmask & highmask])
+            
+        weights_alpha_Fe = self.delta_interp(alpha_Fe, self.alpha_Fe_vals)
 
         if nested:
-            return weights
+            return np.expand_dims(weights_alpha_Fe, axis=1)*np.expand_dims(weights_zmet, axis=0)
         else:
-            return np.expand_dims(weights, axis=1)*np.expand_dims(sfh, axis=0)
+            return np.expand_dims(weights_alpha_Fe, axis=(1,2))*np.expand_dims(weights_zmet, axis=(0,2))*np.expand_dims(sfh, axis=(0,1))
     
     def lognorm(self, comp, sfh, zmet=None, nested=False):
         """
         log normal metallicity distribution of coeval stars. 
         Functional form: P(x) = 1/(x*sigma*np.sqrt(2*np.pi)) * np.exp(-(np.log(x)-mu)**2/(2*sigma**2))
         where mu = ln(metallicity mean), sigma = some concentration measurement
+        Currently sigma fixed as 0.45
         """
         
         if zmet is None:
             log_mean_zmet = np.log(comp["metallicity"])
         else:
             log_mean_zmet = np.log(zmet)
+        if alpha_Fe is None:
+            alpha_Fe = comp["alpha_Fe"]
+        
         sigma = 0.45
 
-        weights = np.zeros(self.zmet_vals.shape[0])
+        weights_zmet = np.zeros(self.zmet_vals.shape[0])
 
         vals_hr = np.arange(0., 10., 0.01) + 0.005
 
         factors_hr = 1/(vals_hr*sigma*np.sqrt(2*np.pi)) * np.exp(-(np.log(vals_hr)-log_mean_zmet)**2/(2*sigma**2))
 
-        for i in range(weights.shape[0]):
+        for i in range(weights_zmet.shape[0]):
             lowmask = (vals_hr > self.zmet_lims[i])
             highmask = (vals_hr < self.zmet_lims[i+1])
-            weights[i] = np.sum(0.01*factors_hr[lowmask & highmask])
+            weights_zmet[i] = np.sum(0.01*factors_hr[lowmask & highmask])
+            
+        weights_alpha_Fe = self.delta_interp(alpha_Fe, self.alpha_Fe_vals)
 
         if nested:
-            return weights
+            return np.expand_dims(weights_alpha_Fe, axis=1)*np.expand_dims(weights_zmet, axis=0)
         else:
-            return np.expand_dims(weights, axis=1)*np.expand_dims(sfh, axis=0)
+            return np.expand_dims(weights_alpha_Fe, axis=(1,2))*np.expand_dims(weights_zmet, axis=(0,2))*np.expand_dims(sfh, axis=(0,1))
 
     def constant(self, comp, sfh):
         """ constant metallicity without any variation in time, distribution
@@ -182,10 +205,12 @@ class chemical_enrichment_history(object):
         zmet = comp["metallicity"]
         if "metallicity_scatter" not in comp.keys():
             comp["metallicity_scatter"] = "delta"
+        alpha_Fe = comp["alpha_Fe"]
         
         weights = getattr(self, comp['metallicity_scatter']
-                        )(comp, sfh, zmet=zmet, nested=True)
-        return np.expand_dims(weights, axis=1)*np.expand_dims(sfh, axis=0)
+                         )(comp, sfh, zmet=zmet, alpha_Fe=alpha_Fe, nested=True)
+        
+        return np.expand_dims(weights, axis=2)*np.expand_dims(sfh, axis=(0,1))
     
     def two_step(self, comp, sfh):
         """ 2-step metallicities (time-varying!) time of shift as free parameter """
@@ -195,13 +220,14 @@ class chemical_enrichment_history(object):
         step_age = comp["metallicity_step_age"]*10**9
         if "metallicity_scatter" not in comp.keys():
             comp["metallicity_scatter"] = 'delta'
+        alpha_Fe = comp["alpha_Fe"]
         
         # get SSP ages
         SSP_ages = config.age_sampling
         SSP_age_bins = config.age_bins
         
         # loop through all SSP ages
-        zmet_comp = np.zeros((self.zmet_vals.shape[0], sfh.shape[0]))
+        zmet_comp = np.zeros((self.alpha_Fe_vals.shape[0], self.zmet_vals.shape[0], sfh.shape[0]))
         for i,agei in enumerate(SSP_ages):
             # detect if the SSP age's higher boundary > step_age and lower boundary < step_age
             if SSP_age_bins[i+1]>step_age and SSP_age_bins[i]<step_age:
@@ -211,22 +237,22 @@ class chemical_enrichment_history(object):
                 burst_weight = (step_age - SSP_age_bins[i])/width
                 SSP_zmet = old_weight*zmet_old + burst_weight*zmet_young
                 # weights from metallicity scatter
-                zmet_comp[:,i] = getattr(self, comp['metallicity_scatter']
-                                        )(comp, sfh, zmet=SSP_zmet, nested=True)
+                zmet_comp[:,:,i] = getattr(self, comp['metallicity_scatter']
+                                          )(comp, sfh, zmet=SSP_zmet, alpha_Fe=alpha_Fe, nested=True)
             
             # if before step_age
             elif SSP_age_bins[i]>step_age:
                 # weights from metallicity scatter
-                zmet_comp[:,i] = getattr(self, comp['metallicity_scatter']
-                                        )(comp, sfh, zmet=zmet_old, nested=True)
+                zmet_comp[:,:,i] = getattr(self, comp['metallicity_scatter']
+                                          )(comp, sfh, zmet=zmet_old, alpha_Fe=alpha_Fe, nested=True)
                 
             # if after step_age
             elif SSP_age_bins[i+1]<step_age:
                 # weights from metallicity scatter
-                zmet_comp[:,i] = getattr(self, comp['metallicity_scatter']
-                                        )(comp, sfh, zmet=zmet_young, nested=True)
+                zmet_comp[:,:,i] = getattr(self, comp['metallicity_scatter']
+                                          )(comp, sfh, zmet=zmet_young, alpha_Fe=alpha_Fe, nested=True)
             
-        return zmet_comp*np.expand_dims(sfh, axis=0)
+        return zmet_comp*np.expand_dims(sfh, axis=(0,1))
     
     def psb_two_step(self, comp, sfh):
         """ 
@@ -240,13 +266,14 @@ class chemical_enrichment_history(object):
         burstage = comp["burstage"]*10**9
         if "metallicity_scatter" not in comp.keys():
             comp["metallicity_scatter"] = 'delta'
+        alpha_Fe = comp["alpha_Fe"]
         
         # get SSP ages
         SSP_ages = config.age_sampling
         SSP_age_bins = config.age_bins
         
         # loop through all SSP ages
-        zmet_comp = np.zeros((self.zmet_vals.shape[0], sfh.shape[0]))
+        zmet_comp = np.zeros((self.alpha_Fe_vals.shape[0], self.zmet_vals.shape[0], sfh.shape[0]))
         for i,agei in enumerate(SSP_ages):
             # detect if the SSP age's higher boundary > tburst and lower boundary < tburst
             if SSP_age_bins[i+1]>burstage and SSP_age_bins[i]<burstage:
@@ -256,19 +283,19 @@ class chemical_enrichment_history(object):
                 burst_weight = (burstage - SSP_age_bins[i])/width
                 SSP_zmet = old_weight*zmet_old + burst_weight*zmet_burst
                 # weights from metallicity scatter
-                zmet_comp[:,i] = getattr(self, comp['metallicity_scatter']
-                                        )(comp, sfh, zmet=SSP_zmet, nested=True)
+                zmet_comp[:,:,i] = getattr(self, comp['metallicity_scatter']
+                                          )(comp, sfh, zmet=SSP_zmet, alpha_Fe=alpha_Fe, nested=True)
             
             # if before tburst
             elif SSP_age_bins[i]>burstage:
                 # weights from metallicity scatter
-                zmet_comp[:,i] = getattr(self, comp['metallicity_scatter']
-                                        )(comp, sfh, zmet=zmet_old, nested=True)
+                zmet_comp[:,:,i] = getattr(self, comp['metallicity_scatter']
+                                          )(comp, sfh, zmet=zmet_old, alpha_Fe=alpha_Fe, nested=True)
                 
             # if after tburst
             elif SSP_age_bins[i+1]<burstage:
                 # weights from metallicity scatter
-                zmet_comp[:,i] = getattr(self, comp['metallicity_scatter']
-                                        )(comp, sfh, zmet=zmet_burst, nested=True)
+                zmet_comp[:,:,i] = getattr(self, comp['metallicity_scatter']
+                                          )(comp, sfh, zmet=zmet_burst, alpha_Fe=alpha_Fe, nested=True)
         
-        return zmet_comp*np.expand_dims(sfh, axis=0)
+        return zmet_comp*np.expand_dims(sfh, axis=(0,1))

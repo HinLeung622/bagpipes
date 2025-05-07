@@ -30,15 +30,17 @@ def add_spectrum(spectrum, ax, x_ticks=None, zorder=4, z_non_zero=True,
 
     # Plot the data
     if spectrum.shape[1] == 2:
-        if color == "default":
-            color = "sandybrown"
+        if type(color) is str:
+            if color == "default":
+                color = "sandybrown"
 
         ax.plot(spectrum[:, 0], spectrum[:, 1]*10**-y_scale,
                 color=color, zorder=zorder, lw=lw, label=label, alpha=alpha)
 
     elif spectrum.shape[1] == 3:
-        if color == "default":
-            color = "dodgerblue"
+        if type(color) is str:
+            if color == "default":
+                color = "dodgerblue"
 
         ax.plot(spectrum[:, 0], spectrum[:, 1]*10**-y_scale,
                 color=color, zorder=zorder, lw=lw, label=label, alpha=alpha)

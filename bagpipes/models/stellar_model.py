@@ -27,17 +27,20 @@ class stellar(object):
         """ Resamples the raw stellar grids to the input wavs. """
 
         grid_raw_ages = np.zeros((self.wavelengths.shape[0],
+                                  config.alpha_Fe.shape[0],
                                   config.metallicities.shape[0],
                                   config.raw_stellar_ages.shape[0]))
 
-        for i in range(config.metallicities.shape[0]):
-            for j in range(config.raw_stellar_ages.shape[0]):
+        for i in range(config.alpha_Fe.shape[0]):
+            for j in range(config.metallicities.shape[0]):
+                for k in range(config.raw_stellar_ages.shape[0]):
 
-                raw_grid = config.raw_stellar_grid[i].data
-                grid_raw_ages[:, i, j] = np.interp(self.wavelengths,
-                                                   config.wavelengths,
-                                                   raw_grid[j, :],
-                                                   left=0., right=0.)
+                    grid_raw_ages[:, i, j, k] = np.interp(
+                        self.wavelengths, 
+                        config.wavelengths,
+                        config.raw_stellar_grid[i,j,k,:],
+                        left=0., right=0.
+                        )
 
         return grid_raw_ages
 
@@ -48,6 +51,7 @@ class stellar(object):
         ratios is very important for obtaining realistic results. """
 
         grid = np.zeros((self.wavelengths.shape[0],
+                         config.alpha_Fe.shape[0],
                          config.metallicities.shape[0],
                          config.age_sampling.shape[0]))
 
@@ -78,7 +82,7 @@ class stellar(object):
 
             # If new bin falls completely within one raw bin
             if stop == start:
-                grid[:, :, j] = grid_raw_ages[:, :, start]
+                grid[:, :, :, j] = grid_raw_ages[:, :, :, start]
 
             # If new bin has contributions from more than one raw bin
             else:
@@ -94,9 +98,9 @@ class stellar(object):
                 width_slice = raw_age_widths[start:stop + 1]
 
                 summed = np.sum(np.expand_dims(width_slice, axis=0)
-                                * grid_raw_ages[:, :, start:stop + 1], axis=2)
+                                * grid_raw_ages[:, :, :, start:stop + 1], axis=3)
 
-                grid[:, :, j] = summed/np.sum(width_slice)
+                grid[:, :, :, j] = summed/np.sum(width_slice)
 
                 raw_age_widths[start] /= start_fact
                 raw_age_widths[stop] /= end_fact
@@ -113,7 +117,7 @@ class stellar(object):
         ----------
 
         sfh_ceh : numpy.ndarray
-            2D array containing the desired star-formation and
+            3D array containing the desired star-formation and
             chemical evolution history.
 
         t_bc : float
@@ -130,22 +134,23 @@ class stellar(object):
         if index == 0:
             index += 1
 
-        for i in range(config.metallicities.shape[0]):
-            if sfh_ceh[i, :index].sum() > 0.:
-                sfh_ceh[:, index-1] *= (1. - old_weight)
+        for i in range(config.alpha_Fe.shape[0]):
+            for j in range(config.metallicities.shape[0]):
+                if sfh_ceh[i, j, :index].sum() > 0.:
+                    sfh_ceh[i, :, index-1] *= (1. - old_weight)
 
-                spectrum_young += np.sum(self.grid[:, i, :index]
-                                         * sfh_ceh[i, :index], axis=1)
+                    spectrum_young += np.sum(self.grid[:, i, j, :index]
+                                            * sfh_ceh[i, j, :index], axis=1)
 
-                sfh_ceh[:, index-1] /= (1. - old_weight)
+                    sfh_ceh[i, :, index-1] /= (1. - old_weight)
 
-            if sfh_ceh[i, index-1:].sum() > 0.:
-                sfh_ceh[:, index-1] *= old_weight
+                if sfh_ceh[i, j, index-1:].sum() > 0.:
+                    sfh_ceh[i, :, index-1] *= old_weight
 
-                spectrum += np.sum(self.grid[:, i, index-1:]
-                                   * sfh_ceh[i, index-1:], axis=1)
+                    spectrum += np.sum(self.grid[:, i, j, index-1:]
+                                    * sfh_ceh[i, j, index-1:], axis=1)
 
-                sfh_ceh[:, index-1] /= old_weight
+                    sfh_ceh[i, :, index-1] /= old_weight
 
         if t_bc == 0.:
             return spectrum

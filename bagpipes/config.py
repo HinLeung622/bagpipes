@@ -70,19 +70,29 @@ try:
     # The ages of the grid points in Gyr
     raw_stellar_ages = fits.open(grid_dir + "/" + stellar_file)[-2].data
 
+    # The alpha enhancement of the grid points in [alpha/Fe] (i.e. log10(alpha/Fe)* - log10(alpha/Fe)sol)
+    alpha_Fe = np.array([0.0])
+
     # The fraction of stellar mass still living (1 - return fraction).
-    # Axis 0 runs over metallicity, axis 1 runs over age.
-    live_frac = fits.open(grid_dir + "/" + stellar_file)[-3].data[:, 1:]
+    # Axis 0 runs over alpha/Fe, axis 1 runs over metallicity, axis 2 runs over age.
+    live_frac = np.expand_dims(fits.open(grid_dir + "/" + stellar_file)[-3].data[:, 1:].T, axis=0)
 
     # The raw stellar grids, stored as a FITS HDUList.
     # The different HDUs are the grids at different metallicities.
     # Axis 0 of each grid runs over wavelength, axis 1 over age.
-    raw_stellar_grid = fits.open(grid_dir + "/" + stellar_file)[1:8]
+    raw_stellar_grid = np.expand_dims(
+        np.array([hdu.data for hdu in fits.open(grid_dir + "/" + stellar_file)[1:8]]),
+        axis=0
+    )
+    #raw_stellar_grid = fits.open(grid_dir + "/" + stellar_file)[1:8]
 
     # Set up edge positions for metallicity bins for stellar models.
     metallicity_bins = make_bins(metallicities, make_rhs=True)[0]
     metallicity_bins[0] = 0.
     metallicity_bins[-1] = 10.
+
+    # set up edge positions for alpha/Fe bins for stellar models.
+    alpha_Fe_bins = np.array([0.0, 0.0])
 
 except IOError:
     print("Failed to load stellar grids, these should be placed in"

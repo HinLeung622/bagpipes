@@ -10,9 +10,12 @@ from . import moons
 
 from . import config
 from . import utils
+from . import update_config
 
 from .models.model_galaxy import model_galaxy
 from .input.galaxy import galaxy
 from .fitting.fit import fit
 
 from .catalogue.fit_catalogue import fit_catalogue
+
+from .update_config import change_grid
