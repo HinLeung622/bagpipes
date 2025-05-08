@@ -282,7 +282,13 @@ class star_formation_history:
         mask = self.ages < self.age_of_universe
         t = self.age_of_universe - self.ages[mask]
 
-        sfr[mask] = ((t/tau)**alpha + (t/tau)**-beta)**-1
+        # using masks to avoid numpy64 float overflow
+        # create a mask where we only perform calculations when both the alpha and beta
+        # terms are less than 1e250.
+        # Otherwise, set sfr as 0
+        ratio = t/tau
+        mask_overflow = ((np.log10(ratio) * alpha < 250) & (np.log10(ratio) * -beta < 250))
+        sfr[mask][mask_overflow] = (ratio[mask_overflow]**alpha + ratio[mask_overflow]**-beta)**-1
 
         if tau > self.age_of_universe:
             self.unphysical = True
@@ -328,7 +334,7 @@ class star_formation_history:
         ratio = tburst/tau_plaw
         mask_overflow = ((np.log10(ratio) * alpha < 250) & (np.log10(ratio) * -beta < 250))
         sfr_burst = np.zeros_like(tburst)
-        sfr_burst[mask_overflow] = ((tburst[mask_overflow]/tau_plaw)**alpha + (tburst[mask_overflow]/tau_plaw)**-beta)**-1
+        sfr_burst[mask_overflow] = (ratio[mask_overflow]**alpha + ratio[mask_overflow]**-beta)**-1
         sfr_burst_tot = np.sum(sfr_burst*self.age_widths[mask])
 
         sfr[ind] = (1-fburst) * np.exp(-texp/tau) / sfr_exp_tot
