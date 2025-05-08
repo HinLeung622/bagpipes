@@ -23,6 +23,7 @@ if not tex_on:
 
 latex_names = {"redshift": "z",
                "metallicity": "Z",
+               "alpha_Fe": "[\\alpha/\\mathrm{Fe}]",
                "massformed": "\\mathrm{log_{10}(M",
                "mass": "\\mathrm{log_{10}(M_*",
                "stellar_mass": "\\mathrm{log_{10}(M_*",
