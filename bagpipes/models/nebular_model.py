@@ -123,17 +123,18 @@ class nebular(object):
         index = config.age_bins[config.age_bins < t_bc].shape[0]
         weight = 1 - (config.age_bins[index] - t_bc)/config.age_widths[index-1]
 
-        for i in range(config.metallicities.shape[0]):
-            if sfh_ceh[i, :index].sum() > 0.:
-                sfh_ceh[:, index-1] *= weight
+        for i in range(config.alpha_Fe.shape[0]):
+            for j in range(config.metallicities.shape[0]):
+                if sfh_ceh[i, j, :index].sum() > 0.:
+                    sfh_ceh[i, :, index-1] *= weight
 
-                spectrum_low_logU += np.sum(grid[:, i, logU_ind-1, :index]
-                                            * sfh_ceh[i, :index], axis=1)
+                    spectrum_low_logU += np.sum(grid[:, j, logU_ind-1, :index]
+                                                * sfh_ceh[i, j, :index], axis=1)
 
-                spectrum_high_logU += np.sum(grid[:, i, logU_ind, :index]
-                                             * sfh_ceh[i, :index], axis=1)
+                    spectrum_high_logU += np.sum(grid[:, j, logU_ind, :index]
+                                                * sfh_ceh[i, j, :index], axis=1)
 
-                sfh_ceh[:, index-1] /= weight
+                    sfh_ceh[i, :, index-1] /= weight
 
         spectrum = (spectrum_high_logU*(1 - logU_weight)
                     + spectrum_low_logU*logU_weight)

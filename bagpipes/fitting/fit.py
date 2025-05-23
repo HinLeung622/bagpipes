@@ -245,7 +245,7 @@ class fit(object):
             np.set_printoptions(threshold=10**4)
 
             for k in self.results.keys():
-                file.create_dataset(k, data=self.results[k])
+                file.create_dataset(k, data=self.results[k], compression="gzip" if type(self.results[k]) is np.ndarray else None)
 
             self.results["fit_instructions"] = self.fit_instructions
 

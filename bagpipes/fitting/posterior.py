@@ -173,7 +173,10 @@ class posterior(object):
         quantity_names = [q for q in all_names if q in all_model_keys]
 
         for q in quantity_names:
-            size = getattr(self.model_galaxy, q).shape[0]
+            if len(getattr(self.model_galaxy, q).shape) == 0:
+                size = 1
+            else:
+                size = getattr(self.model_galaxy, q).shape[0]
             self.samples[q] = np.zeros((self.n_samples, size))
 
         if self.galaxy.photometry_exists:
@@ -188,8 +191,8 @@ class posterior(object):
             self.samples["calib"] = np.zeros((self.n_samples, size))
 
         if "noise" in list(self.fitted_model.model_components):
-            type = self.fitted_model.model_components["noise"]["type"]
-            if type.startswith("GP"):
+            noise_type = self.fitted_model.model_components["noise"]["type"]
+            if noise_type.startswith("GP"):
                 size = self.model_galaxy.spectrum.shape[0]
                 self.samples["noise"] = np.zeros((self.n_samples, size))
 
@@ -209,8 +212,8 @@ class posterior(object):
                 self.samples["calib"][i] = self.fitted_model.calib.model
 
             if "noise" in list(self.fitted_model.model_components):
-                type = self.fitted_model.model_components["noise"]["type"]
-                if type.startswith("GP"):
+                noise_type = self.fitted_model.model_components["noise"]["type"]
+                if noise_type.startswith("GP"):
                     self.samples["noise"][i] = self.fitted_model.noise.mean()
 
             for q in quantity_names:

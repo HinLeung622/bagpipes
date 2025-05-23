@@ -280,15 +280,16 @@ class star_formation_history:
         tau = param["tau"]*10**9
 
         mask = self.ages < self.age_of_universe
-        t = self.age_of_universe - self.ages[mask]
+        t = self.age_of_universe - self.ages
 
         # using masks to avoid numpy64 float overflow
         # create a mask where we only perform calculations when both the alpha and beta
         # terms are less than 1e250.
         # Otherwise, set sfr as 0
         ratio = t/tau
+        ratio[~mask] = np.nan
         mask_overflow = ((np.log10(ratio) * alpha < 250) & (np.log10(ratio) * -beta < 250))
-        sfr[mask][mask_overflow] = (ratio[mask_overflow]**alpha + ratio[mask_overflow]**-beta)**-1
+        sfr[mask & mask_overflow] = (ratio[mask & mask_overflow]**alpha + ratio[mask & mask_overflow]**-beta)**-1
 
         if tau > self.age_of_universe:
             self.unphysical = True

@@ -73,11 +73,10 @@ def _change_stellar_grid(stellar_grid_name):
 
             # The fraction of stellar mass still living (1 - return fraction).
             # Axis 0 runs over alpha/Fe, axis 1 runs over metallicity, axis 2 runs over age.
-            config.live_frac = None
+            config.live_frac = np.ones((len(config.alpha_Fe), len(config.metallicities), len(config.raw_stellar_ages))) # fix
 
-            # The raw stellar grids, stored as a FITS HDUList.
-            # The different HDUs are the grids at different metallicities.
-            # Axis 0 of each grid runs over wavelength, axis 1 over age.
+            # The raw stellar grids, stored as a numpy array.
+            # Axis 0 runs over alpha/Fe, axis 1 over metallicity, axis 2 runs over age, axis 3 runs over wavelength.
             config.raw_stellar_grid = np.array([hdu.data for hdu in fits.open(grid_dir + "/" + config.stellar_file)[1:6]])
 
             # Set up edge positions for metallicity bins for stellar models.
