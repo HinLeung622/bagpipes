@@ -94,6 +94,8 @@ try:
     # set up edge positions for alpha/Fe bins for stellar models.
     alpha_Fe_bins = np.array([0.0, 0.0])
 
+    stellar_grid_name = "bc03_miles"
+
 except IOError:
     print("Failed to load stellar grids, these should be placed in"
           + " the bagpipes/models/grids/ directory.")
@@ -131,6 +133,8 @@ try:
     # Grid of nebular continuum fluxes.
     cont_grid = [fits.open(grid_dir + "/" + neb_cont_file)[i].data for
                  i in range(len(metallicities) * len(logU) + 1)]
+    
+    neb_grid_name = "bc03_miles_extended"
 
 except IOError:
     print("Failed to load nebular grids, these should be placed in the"
@@ -158,6 +162,8 @@ try:
     dust_grid_umin_umax = [
         fits.open(grid_dir + "/dl07_grids_umin_umax.fits")[i].data for i
         in range(len(qpah_vals) + 1)]
+    
+    dust_grid_name = "dl07"
 
 except IOError:
     print("Failed to load dust emission grids, these should be placed in the"
@@ -192,6 +198,8 @@ else:
 
 # 2D numpy array containing the IGM attenuation grid.
 raw_igm_grid = fits.open(grid_dir + "/d_igm_grid_inoue14.fits")[1].data
+
+igm_grid_name = "inoue14"
 
 
 """ These variables are alternatives to those given in the stellar

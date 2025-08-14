@@ -18,4 +18,4 @@ from .fitting.fit import fit
 
 from .catalogue.fit_catalogue import fit_catalogue
 
-from .update_config import change_grid
+from .update_config import change_grid,which_grids,list_grids

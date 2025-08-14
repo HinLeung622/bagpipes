@@ -50,11 +50,15 @@ class posterior(object):
         # Reconstruct the fitted model.
         file = h5py.File(fname, "r")
 
-        fit_info_str = file.attrs["fit_instructions"]
-        fit_info_str = fit_info_str.replace("array", "np.array")
-        fit_info_str = fit_info_str.replace("float", "np.float")
-        fit_info_str = fit_info_str.replace("np.np.", "np.")
-        self.fit_instructions = eval(fit_info_str)
+        # Check if this is an old deepdish format file
+        if 'DEEPDISH_IO_VERSION' in file.attrs:
+            self.fit_instructions = utils.convert_deepdish_group(file['fit_instructions'])
+        else:
+            fit_info_str = file.attrs["fit_instructions"]
+            fit_info_str = fit_info_str.replace("array", "np.array")
+            fit_info_str = fit_info_str.replace("float", "np.float")
+            fit_info_str = fit_info_str.replace("np.np.", "np.")
+            self.fit_instructions = eval(fit_info_str)
 
         self.fitted_model = fitted_model(self.galaxy, self.fit_instructions)
 

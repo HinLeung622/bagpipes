@@ -38,6 +38,7 @@ except ImportError:
 
 from .. import utils
 from .. import plotting
+from ..config import working_dir
 
 from .fitted_model import fitted_model
 from .posterior import posterior
@@ -87,7 +88,7 @@ class fit(object):
             utils.make_dirs(run=run)
 
         # The base name for output files.
-        self.fname = "pipes/posterior/" + run + "/" + self.galaxy.ID + "_"
+        self.fname = working_dir + "/pipes/posterior/" + run + "/" + self.galaxy.ID + "_"
 
         # A dictionary containing properties of the model to be saved.
         self.results = {}
@@ -99,16 +100,21 @@ class fit(object):
             self.posterior = posterior(self.galaxy, run=run,
                                        n_samples=n_posterior)
 
-            fit_info_str = file.attrs["fit_instructions"]
-            fit_info_str = fit_info_str.replace("array", "np.array")
-            fit_info_str = fit_info_str.replace("float", "np.float")
-            fit_info_str = fit_info_str.replace("np.np.", "np.")
-            self.fit_instructions = eval(fit_info_str)
+            # Check if this is an old deepdish format file
+            if 'DEEPDISH_IO_VERSION' in file.attrs:
+                self.fit_instructions = utils.convert_deepdish_group(file['fit_instructions'])
+            else:
+                fit_info_str = file.attrs["fit_instructions"]
+                fit_info_str = fit_info_str.replace("array", "np.array")
+                fit_info_str = fit_info_str.replace("float", "np.float")
+                fit_info_str = fit_info_str.replace("np.np.", "np.")
+                self.fit_instructions = eval(fit_info_str)
 
             for k in file.keys():
-                self.results[k] = np.array(file[k])
-                if np.sum(self.results[k].shape) == 1:
-                    self.results[k] = self.results[k][0]
+                if k != 'fit_instructions':
+                    self.results[k] = np.array(file[k])
+                    if np.sum(self.results[k].shape) == 1:
+                        self.results[k] = self.results[k][0]
 
             if rank == 0:
                 print("\nResults loaded from " + self.fname[:-1] + ".h5\n")

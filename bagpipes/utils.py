@@ -2,6 +2,7 @@ from __future__ import print_function, division, absolute_import
 
 import os
 import numpy as np
+import h5py
 from astropy.cosmology import FlatLambdaCDM
 
 
@@ -62,6 +63,81 @@ def make_bins(midpoints, make_rhs=False):
         bin_widths[:-1] = bin_lhs[1:]-bin_lhs[:-1]
 
     return bin_lhs, bin_widths
+
+def convert_deepdish_group(group):
+    """Convert a deepdish h5py group to a Python dictionary.
+    
+    Parameters
+    ----------
+    group : h5py.Group
+        The h5py group to convert
+        
+    Returns
+    -------
+    dict
+        The converted dictionary
+    """
+    result = {}
+    
+    # List of deepdish-specific attributes to ignore
+    deepdish_attrs = {'CLASS', 'TITLE', 'VERSION', 'DEEPDISH_IO_VERSION'}
+    
+    for key in group.keys():
+        item = group[key]
+        
+        if isinstance(item, h5py.Group):
+            # Check if this is an empty group that should be a tuple
+            if len(item.keys()) == 0 and 'i0' in item.attrs and 'i1' in item.attrs:
+                result[key] = (item.attrs['i0'], item.attrs['i1'])
+            else:
+                # Regular group, recursively convert
+                sub_result = {}
+                for subkey in item.keys():
+                    subitem = item[subkey]
+                    if isinstance(subitem, h5py.Group):
+                        # Check if this is a tuple group (has i0 and i1 attributes)
+                        if 'i0' in subitem.attrs and 'i1' in subitem.attrs:
+                            sub_result[subkey] = (subitem.attrs['i0'], subitem.attrs['i1'])
+                        else:
+                            # Recursively convert nested groups
+                            nested_result = convert_deepdish_group(subitem)
+                            if nested_result:
+                                sub_result[subkey] = nested_result
+                    elif isinstance(subitem, h5py.Dataset):
+                        value = subitem[()]
+                        if isinstance(value, np.ndarray) and value.size == 1:
+                            value = value.item()
+                        sub_result[subkey] = value
+                
+                # Add any prior information from group attributes
+                for attr_key, attr_value in item.attrs.items():
+                    # Skip deepdish-specific attributes
+                    if attr_key in deepdish_attrs:
+                        continue
+                    if attr_key.endswith('_prior'):
+                        param_name = attr_key[:-6]  # Remove '_prior' suffix
+                        if param_name in sub_result:
+                            sub_result[attr_key] = attr_value.decode('utf-8') if isinstance(attr_value, bytes) else attr_value
+                    # Handle string attributes (like 'type')
+                    elif isinstance(attr_value, (bytes, str)):
+                        sub_result[attr_key] = attr_value.decode('utf-8') if isinstance(attr_value, bytes) else attr_value
+                    # Handle scalar attributes (like 'Q')
+                    elif isinstance(attr_value, (int, float, np.number)):
+                        sub_result[attr_key] = float(attr_value) if isinstance(attr_value, np.number) else attr_value
+                
+                if sub_result:  # Only add non-empty results
+                    result[key] = sub_result
+        elif isinstance(item, h5py.Dataset):
+            # Convert datasets to Python scalars
+            try:
+                value = item[()]
+                if isinstance(value, np.ndarray) and value.size == 1:
+                    value = value.item()
+                result[key] = value
+            except Exception as e:
+                print(f"Error reading dataset {key}:", e)
+                
+    return result
 
 
 # Set up necessary variables for cosmological calculations.
