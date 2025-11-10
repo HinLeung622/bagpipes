@@ -10,6 +10,7 @@ except RuntimeError:
     pass
 
 from .general import *
+from .. import utils
 
 
 def plot_calibration(fit, save=True, show=False):
@@ -23,7 +24,7 @@ def plot_calibration(fit, save=True, show=False):
     ax = add_calibration(fit, ax)
 
     if save:
-        plotpath = "pipes/plots/" + fit.run + "/" + fit.galaxy.ID + "_cal.pdf"
+        plotpath = utils.working_dir + "/pipes/plots/" + fit.run + "/" + fit.galaxy.ID + "_cal.pdf"
         plt.savefig(plotpath, bbox_inches="tight")
         plt.close(fig)
 

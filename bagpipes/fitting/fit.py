@@ -38,7 +38,6 @@ except ImportError:
 
 from .. import utils
 from .. import plotting
-from ..config import working_dir
 
 from .fitted_model import fitted_model
 from .posterior import posterior
@@ -88,7 +87,7 @@ class fit(object):
             utils.make_dirs(run=run)
 
         # The base name for output files.
-        self.fname = working_dir + "/pipes/posterior/" + run + "/" + self.galaxy.ID + "_"
+        self.fname = utils.working_dir + "/pipes/posterior/" + run + "/" + self.galaxy.ID + "_"
 
         # A dictionary containing properties of the model to be saved.
         self.results = {}
@@ -257,7 +256,8 @@ class fit(object):
 
             file.close()
 
-            os.system("rm " + self.fname + "*")
+            # remove temporary files, replace all spaces in fname with "\ "
+            os.system("rm " + self.fname.replace(" ","\\ ") + "*")
 
             self._print_results()
 

@@ -12,6 +12,7 @@ except RuntimeError:
 from .general import *
 
 from .. import utils
+from .. import utils
 
 
 def plot_sfh_posterior(fit, show=False, save=True, colorscheme="bw"):
@@ -25,7 +26,7 @@ def plot_sfh_posterior(fit, show=False, save=True, colorscheme="bw"):
     add_sfh_posterior(fit, ax, colorscheme=colorscheme)
 
     if save:
-        plotpath = "pipes/plots/" + fit.run + "/" + fit.galaxy.ID + "_sfh.pdf"
+        plotpath = utils.working_dir + "/pipes/plots/" + fit.run + "/" + fit.galaxy.ID + "_sfh.pdf"
         plt.savefig(plotpath, bbox_inches="tight")
         plt.close(fig)
 

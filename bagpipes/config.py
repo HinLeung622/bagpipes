@@ -109,6 +109,12 @@ try:
     neb_cont_file = "bc03_miles_nebular_cont_grids_extended.fits"
     neb_line_file = "bc03_miles_nebular_line_grids_extended.fits"
 
+    # The metallicities of the nebular grids in units of Z_Solar
+    neb_metallicities = np.array([0.005, 0.02, 0.2, 0.4, 1., 2.5, 5.])
+
+    # The alpha enhancement of the grid points in [alpha/Fe] (i.e. log10(alpha/Fe)* - log10(alpha/Fe)sol)
+    neb_alpha_Fe = np.array([0.0])
+
     # Names for the emission features to be tracked.
     line_names = np.loadtxt(grid_dir + "/cloudy_lines.txt",
                             dtype="str", delimiter="}")
@@ -126,13 +132,35 @@ try:
     # LogU values for the nebular emission grids.
     logU = np.arange(-4., 0.01, 0.5)
 
-    # Grid of line fluxes.
-    line_grid = [fits.open(grid_dir + "/" + neb_line_file)[i].data for
-                 i in range(len(metallicities) * len(logU) + 1)]
+    # Grid of line fluxes. Axes from 0 to 4 in order are: alpha/Fe, metallicity, 
+    # logU, age, lines (wavelength)
+    line_grid = np.array(
+        [fits.open(grid_dir + "/" + neb_line_file)[i].data[1:,1:] for
+         i in range(1, len(neb_metallicities) * len(logU) + 1)]
+    )
+    # currently the line_gird is in format metallicity x logU (flattened), age, lines, 
+    # need to reshape this
+    line_grid = np.expand_dims(
+        line_grid.reshape(
+            len(logU), len(neb_metallicities), len(neb_ages), len(line_wavs)
+            ).transpose(1,0,2,3),
+        axis=0
+    )
 
-    # Grid of nebular continuum fluxes.
-    cont_grid = [fits.open(grid_dir + "/" + neb_cont_file)[i].data for
-                 i in range(len(metallicities) * len(logU) + 1)]
+    # Grid of nebular continuum fluxes. Axes from 0 to 4 in order are: alpha/Fe, 
+    # metallicity, logU, age, wavelength
+    cont_grid = np.array(
+        [fits.open(grid_dir + "/" + neb_cont_file)[i].data[1:,1:] for
+         i in range(1, len(neb_metallicities) * len(logU) + 1)]
+    )
+    # currently the cont_gird is in format metallicity x logU (flattened), age, wavs, 
+    # need to reshape this
+    cont_grid = np.expand_dims(
+        cont_grid.reshape(
+            len(logU), len(neb_metallicities), len(neb_ages), len(neb_wavs)
+            ).transpose(1,0,2,3),
+        axis=0
+    )
     
     neb_grid_name = "bc03_miles_extended"
 

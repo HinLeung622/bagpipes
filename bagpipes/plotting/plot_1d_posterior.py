@@ -10,6 +10,7 @@ except RuntimeError:
     pass
 
 from .general import *
+from .. import utils
 
 
 def plot_1d_posterior(fit, fit2=False, show=False, save=True):
@@ -96,7 +97,7 @@ def plot_1d_posterior(fit, fit2=False, show=False, save=True):
         auto_x_ticks(axes[i], nticks=3)
 
     if save:
-        path = "pipes/plots/" + fit.run + "/" + fit.galaxy.ID + "_1d_post.pdf"
+        path = utils.working_dir + "/pipes/plots/" + fit.run + "/" + fit.galaxy.ID + "_1d_post.pdf"
 
         plt.savefig(path, bbox_inches="tight")
         plt.close(fig)

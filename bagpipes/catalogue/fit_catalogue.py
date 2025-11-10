@@ -158,7 +158,7 @@ class fit_catalogue(object):
         """
 
         if rank == 0:
-            cat_file = "pipes/cats/" + self.run + ".fits"
+            cat_file = utils.working_dir + "/pipes/cats/" + self.run + ".fits"
             if os.path.exists(cat_file):
                 self.cat = Table.read(cat_file).to_pandas()
                 self.cat.index = self.IDs
@@ -192,7 +192,7 @@ class fit_catalogue(object):
             # Save the updated output catalogue.
             if rank == 0:
                 save_cat = Table.from_pandas(self.cat)
-                save_cat.write("pipes/cats/" + self.run + ".fits",
+                save_cat.write(utils.working_dir + "/pipes/cats/" + self.run + ".fits",
                                format="fits", overwrite=True)
 
                 print("Bagpipes:", np.sum(self.done), "out of",
@@ -237,11 +237,11 @@ class fit_catalogue(object):
                                  n_live=n_live, sampler=sampler)
 
                 save_cat = Table.from_pandas(self.cat)
-                save_cat.write("pipes/cats/" + self.run + ".fits",
+                save_cat.write(utils.working_dir + "/pipes/cats/" + self.run + ".fits",
                                format="fits", overwrite=True)
 
                 if track_backlog:
-                    n_done = len(glob("pipes/posterior/" + self.run + "/*.h5"))
+                    n_done = len(glob(utils.working_dir + "/pipes/posterior/" + self.run + "/*.h5"))
                     n_cat = np.sum(self.cat["stellar_mass_50"] > 0.)
                     backlog = n_done - n_cat
 

@@ -41,7 +41,7 @@ class posterior(object):
         self.run = run
         self.n_samples = n_samples
 
-        fname = "pipes/posterior/" + self.run + "/" + self.galaxy.ID + ".h5"
+        fname = utils.working_dir + "/pipes/posterior/" + self.run + "/" + self.galaxy.ID + ".h5"
 
         # Check to see whether the object has been fitted.
         if not os.path.exists(fname):

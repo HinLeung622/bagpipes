@@ -10,6 +10,7 @@ except RuntimeError:
     pass
 
 from .general import *
+from .. import utils
 
 
 def plot_corner(fit, show=False, save=True, bins=25, type="fit_params"):
@@ -62,7 +63,7 @@ def plot_corner(fit, show=False, save=True, bins=25, type="fit_params"):
 
     # Save the corner plot to file
     if save:
-        plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID
+        plotpath = (utils.working_dir + "/pipes/plots/" + fit.run + "/" + fit.galaxy.ID
                     + "_corner.pdf")
 
         plt.savefig(plotpath, bbox_inches="tight")

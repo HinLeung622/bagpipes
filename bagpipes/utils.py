@@ -5,7 +5,6 @@ import numpy as np
 import h5py
 from astropy.cosmology import FlatLambdaCDM
 
-
 def make_dirs(run="."):
     """ Make local Bagpipes directory structure in working dir. """
 
@@ -22,11 +21,11 @@ def make_dirs(run="."):
         os.mkdir(working_dir + "/pipes/cats")
 
     if run != ".":
-        if not os.path.exists("pipes/posterior/" + run):
-            os.mkdir("pipes/posterior/" + run)
+        if not os.path.exists(working_dir + "/pipes/posterior/" + run):
+            os.mkdir(working_dir + "/pipes/posterior/" + run)
 
-        if not os.path.exists("pipes/plots/" + run):
-            os.mkdir("pipes/plots/" + run)
+        if not os.path.exists(working_dir + "/pipes/plots/" + run):
+            os.mkdir(working_dir + "/pipes/plots/" + run)
 
 
 def make_bins(midpoints, make_rhs=False):
@@ -148,4 +147,7 @@ ldist_at_z = cosmo.luminosity_distance(z_array).value
 
 install_dir = os.path.dirname(os.path.realpath(__file__))
 grid_dir = install_dir + "/models/grids"
+
+""" This controls where the "pipes" folder that stores all bagpipes 
+outputs is stored. Default is the current working directory. """
 working_dir = os.getcwd()

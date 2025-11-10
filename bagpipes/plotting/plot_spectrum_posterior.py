@@ -11,6 +11,7 @@ except RuntimeError:
 
 from .general import *
 from .plot_galaxy import plot_galaxy
+from .. import utils
 
 
 def plot_spectrum_posterior(fit, show=False, save=True):
@@ -30,7 +31,7 @@ def plot_spectrum_posterior(fit, show=False, save=True):
         add_photometry_posterior(fit, ax[-1], zorder=2, y_scale=y_scale[-1])
 
     if save:
-        plotpath = "pipes/plots/" + fit.run + "/" + fit.galaxy.ID + "_fit.pdf"
+        plotpath = utils.working_dir + "/pipes/plots/" + fit.run + "/" + fit.galaxy.ID + "_fit.pdf"
         plt.savefig(plotpath, bbox_inches="tight")
         plt.close(fig)
 

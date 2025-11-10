@@ -1,6 +1,7 @@
 from __future__ import print_function,  division,  absolute_import
 
 import numpy as np
+import warnings
 
 from astropy.io import fits
 
@@ -16,13 +17,23 @@ stellar_grids = {
     'BPASS_v2.3': "bpass_2.3_bin_imf135_300_stellar_grids.fits"
 }
 neb_grids = {
-    "bc03_miles_extended": ["bc03_miles_nebular_cont_grids_extended.fits", "bc03_miles_nebular_line_grids_extended.fits"]
+    "bc03_miles": ["bc03_miles_nebular_cont_grids.fits", "bc03_miles_nebular_line_grids.fits"],
+    "bc03_miles_extended": ["bc03_miles_nebular_cont_grids_extended.fits", "bc03_miles_nebular_line_grids_extended.fits"],
+    "BPASS_v2.2.1_imf135_100": ["bpass_2.2.1_bin_imf135_100_nebular_cont_grids.fits", "bpass_2.2.1_bin_imf135_100_nebular_line_grids.fits"],
+    "BPASS_v2.2.1_imf135_300": ["bpass_2.2.1_bin_imf135_300_nebular_cont_grids.fits", "bpass_2.2.1_bin_imf135_300_nebular_line_grids.fits"],
 }
 dust_grids = {
     "dl07": ["dl07_grids_umin_only.fits", "dl07_grids_umin_umax.fits"]
 }
 igm_grids = {
     "inoue14": "d_igm_grid_inoue14.fits"
+}
+
+compatible_grids = {
+    'bc03_miles': ['bc03_miles_extended', 'bc03_miles'],
+    'knowles23_smiles': [],
+    'BPASS_v2.2.1': ['BPASS_v2.2.1_imf135_300'],
+    'BPASS_v2.3': [],
 }
 
 
@@ -191,7 +202,6 @@ def _change_stellar_grid(stellar_grid_name):
             # The metallicities of the stellar grids in units of Z_Solar
             config.metallicities = fits.open(grid_dir + "/" + config.stellar_file)[-2].data
 
-
             # The wavelengths of the grid points in Angstroms
             config.wavelengths = fits.open(grid_dir + "/" + config.stellar_file)[-1].data
 
@@ -222,13 +232,154 @@ def _change_stellar_grid(stellar_grid_name):
             print(fail_message)
 
 def _change_neb_grid(nebular_grid_name):
-    pass
+    if nebular_grid_name not in neb_grids.keys():
+        raise ValueError(f"Invalid requested new nebular grid. Only accepting {list(neb_grids.keys())}")
+    
+    config.neb_grid_name = nebular_grid_name
+    fail_message = "Failed to update nebular grids, these should be placed in the bagpipes/models/grids/ directory."
+    if nebular_grid_name == 'bc03_miles_extended':
+        try:
+            # Names of files containing the nebular grids.
+            config.neb_cont_file = "bc03_miles_nebular_cont_grids_extended.fits"
+            config.neb_line_file = "bc03_miles_nebular_line_grids_extended.fits"
+
+            # The metallicities of the nebular grids in units of Z_Solar
+            config.neb_metallicities = np.array([0.005, 0.02, 0.2, 0.4, 1., 2.5, 5.])
+
+            # The alpha enhancement of the grid points in [alpha/Fe] (i.e. log10(alpha/Fe)* - log10(alpha/Fe)sol)
+            config.neb_alpha_Fe = np.array([0.0])
+
+            # Names for the emission features to be tracked.
+            config.line_names = np.loadtxt(grid_dir + "/cloudy_lines.txt",
+                                    dtype="str", delimiter="}")
+
+            # Wavelengths of these emission features in Angstroms.
+            config.line_wavs = np.loadtxt(grid_dir + "/cloudy_linewavs.txt")
+
+            # Ages for the nebular emission grids.
+            config.neb_ages = fits.open(grid_dir
+                                + "/" + config.neb_line_file)[1].data[1:, 0]
+
+            # Wavelengths for the nebular continuum grids.
+            config.neb_wavs = fits.open(grid_dir + "/" + config.neb_cont_file)[1].data[0, 1:]
+
+            # LogU values for the nebular emission grids.
+            config.logU = np.arange(-4., 0.01, 0.5)
+
+            # Grid of line fluxes. Axes from 0 to 4 in order are: alpha/Fe, metallicity, 
+            # logU, age, lines (wavelength)
+            config.line_grid = np.array(
+                [fits.open(grid_dir + "/" + config.neb_line_file)[i].data[1:,1:] for
+                i in range(1, len(config.neb_metallicities) * len(config.logU) + 1)]
+            )
+            # currently the line_gird is in format metallicity x logU (flattened), age, lines, 
+            # need to reshape this
+            config.line_grid = np.expand_dims(
+                config.line_grid.reshape(
+                    len(config.logU), len(config.neb_metallicities), 
+                    len(config.neb_ages), len(config.line_wavs)
+                    ).transpose(1,0,2,3),
+                axis=0
+            )
+
+            # Grid of nebular continuum fluxes. Axes from 0 to 4 in order are: alpha/Fe, 
+            # metallicity, logU, age, wavelength
+            config.cont_grid = np.array(
+                [fits.open(grid_dir + "/" + config.neb_cont_file)[i].data[1:,1:] for
+                i in range(1, len(config.neb_metallicities) * len(config.logU) + 1)]
+            )
+            # currently the cont_gird is in format metallicity x logU (flattened), age, wavs, 
+            # need to reshape this
+            config.cont_grid = np.expand_dims(
+                config.cont_grid.reshape(
+                    len(config.logU), len(config.neb_metallicities), 
+                    len(config.neb_ages), len(config.neb_wavs)
+                    ).transpose(1,0,2,3),
+                axis=0
+            )
+
+        except IOError:
+            print(fail_message)
+
+    if nebular_grid_name == 'BPASS_v2.2.1_imf135_300':
+        try:
+            # Names of files containing the nebular grids.
+            config.neb_cont_file = "bpass_2.2.1_bin_imf135_300_nebular_cont_grids.fits"
+            config.neb_line_file = "bpass_2.2.1_bin_imf135_300_nebular_line_grids.fits"
+
+            # The metallicities of the nebular grids in units of Z_Solar
+            config.neb_metallicities = np.array([10**-5, 10**-4, 0.001, 0.002, 0.003, 0.004,
+                              0.006, 0.008, 0.010, 0.014, 0.020, 0.030,
+                              0.040])/0.02
+
+            # The alpha enhancement of the grid points in [alpha/Fe] (i.e. log10(alpha/Fe)* - log10(alpha/Fe)sol)
+            config.neb_alpha_Fe = np.array([0.0])
+
+            # Names for the emission features to be tracked.
+            config.line_names = np.loadtxt(grid_dir + "/cloudy_lines.txt",
+                                    dtype="str", delimiter="}")
+
+            # Wavelengths of these emission features in Angstroms.
+            config.line_wavs = np.loadtxt(grid_dir + "/cloudy_linewavs.txt")
+
+            # Ages for the nebular emission grids.
+            config.neb_ages = fits.open(grid_dir
+                                + "/" + config.neb_line_file)[1].data[1:, 0]
+
+            # Wavelengths for the nebular continuum grids.
+            config.neb_wavs = fits.open(grid_dir + "/" + config.neb_cont_file)[1].data[0, 1:]
+
+            # LogU values for the nebular emission grids.
+            config.logU = np.arange(-4., -0.99, 0.5)
+
+            # Grid of line fluxes. Axes from 0 to 4 in order are: alpha/Fe, metallicity, 
+            # logU, age, lines (wavelength)
+            config.line_grid = np.array(
+                [fits.open(grid_dir + "/" + config.neb_line_file)[i].data[1:,1:] for
+                i in range(1, len(config.neb_metallicities) * len(config.logU) + 1)]
+            )
+            # currently the line_gird is in format metallicity x logU (flattened), age, lines, 
+            # need to reshape this
+            config.line_grid = np.expand_dims(
+                config.line_grid.reshape(
+                    len(config.logU), len(config.neb_metallicities), 
+                    len(config.neb_ages), len(config.line_wavs)
+                    ).transpose(1,0,2,3),
+                axis=0
+            )
+
+            # Grid of nebular continuum fluxes. Axes from 0 to 4 in order are: alpha/Fe, 
+            # metallicity, logU, age, wavelength
+            config.cont_grid = np.array(
+                [fits.open(grid_dir + "/" + config.neb_cont_file)[i].data[1:,1:] for
+                i in range(1, len(config.neb_metallicities) * len(config.logU) + 1)]
+            )
+            # currently the cont_gird is in format metallicity x logU (flattened), age, wavs, 
+            # need to reshape this
+            config.cont_grid = np.expand_dims(
+                config.cont_grid.reshape(
+                    len(config.logU), len(config.neb_metallicities), 
+                    len(config.neb_ages), len(config.neb_wavs)
+                    ).transpose(1,0,2,3),
+                axis=0
+            )
+
+        except IOError:
+            print(fail_message)
 
 def _change_dust_grid(dust_grid_name):
     pass
 
 def _change_igm_grid(IGM_grid_name):
     pass
+
+def _check_compatibility():
+    """ Checks the compatibility between loaded stellar and nebular grids """
+    if config.neb_grid_name not in compatible_grids[config.stellar_grid_name]:
+        warnings.warn(f"Current loaded nebular grid {config.neb_grid_name} " +
+        f"is not directly compatible with the loaded stellar grid {config.stellar_grid_name}. " + 
+        "The nebular grid will be interpolated onto the age, metallicity and alpha/Fe grid points " + 
+        "of the stellar grid.")
 
 def change_grid(stellar_grid_name=None, 
                 neb_grid_name=None, 
@@ -247,3 +398,5 @@ def change_grid(stellar_grid_name=None,
 
     if igm_grid_name is not None:
         _change_igm_grid(igm_grid_name)
+
+    _check_compatibility()
