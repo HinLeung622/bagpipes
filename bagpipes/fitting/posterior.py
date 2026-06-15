@@ -14,6 +14,7 @@ from ..models.star_formation_history import star_formation_history
 from ..models.model_galaxy import model_galaxy
 
 from .. import utils
+from .. import config
 
 
 class posterior(object):
@@ -164,7 +165,9 @@ class posterior(object):
         self.model_galaxy = model_galaxy(self.fitted_model.model_components,
                                          filt_list=self.galaxy.filt_list,
                                          spec_wavs=self.galaxy.spec_wavs,
-                                         index_list=self.galaxy.index_list)
+                                         index_list=self.galaxy.index_list,
+                                         spec_units=self.galaxy.out_units,
+                                         phot_units=self.galaxy.out_units)
 
         all_names = ["photometry", "spectrum", "spectrum_full", "uvj",
                      "indices"]
@@ -179,9 +182,19 @@ class posterior(object):
         if self.galaxy.photometry_exists:
             self.samples["chisq_phot"] = np.zeros(self.n_samples)
 
+        if "dla" in list(self.fitted_model.model_components):
+            size = self.model_galaxy.spectrum_full.shape[0]
+            self.samples["dla_transmission"] = np.zeros((self.n_samples, size))
+
         if "dust" in list(self.fitted_model.model_components):
             size = self.model_galaxy.spectrum_full.shape[0]
             self.samples["dust_curve"] = np.zeros((self.n_samples, size))
+
+        if "nebular" in list(self.fitted_model.model_components):
+            blank_arrays = [np.zeros(self.n_samples)
+                            for i in range(len(config.line_names))]
+            line_post_dict = dict(zip(config.line_names, blank_arrays))
+            self.samples["line_fluxes"] = line_post_dict
 
         if "calib" in list(self.fitted_model.model_components):
             size = self.model_galaxy.spectrum.shape[0]
@@ -201,9 +214,18 @@ class posterior(object):
             if self.galaxy.photometry_exists:
                 self.samples["chisq_phot"][i] = self.fitted_model.chisq_phot
 
+            if "dla" in list(self.fitted_model.model_components):
+                dla_trans = self.fitted_model.model_galaxy.dla_trans
+                self.samples["dla_transmission"][i] = dla_trans
+
             if "dust" in list(self.fitted_model.model_components):
                 dust_curve = self.fitted_model.model_galaxy.dust_atten.A_cont
                 self.samples["dust_curve"][i] = dust_curve
+
+            if "nebular" in list(self.fitted_model.model_components):
+                for key in config.line_names:
+                    line_flux = self.fitted_model.model_galaxy.line_fluxes[key]
+                    self.samples["line_fluxes"][key][i] = line_flux
 
             if "calib" in list(self.fitted_model.model_components):
                 self.samples["calib"][i] = self.fitted_model.calib.model

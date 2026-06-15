@@ -6,6 +6,38 @@ Latest News
 I'm going to attempt to keep this page updated with news about the code, including updates to the code and documentation, as well as issues people make me aware of.
 
 
+December 2025
+------------
+
+**Monday 22nd:** Version 1.3.3 of the code has been released today.
+
+ - A fix has been made to a bug that was recently introduced into the double power law SFH model.
+
+ - The fesc model has been improved, now using the version described in `Giovinazzo et al. (2025) <https://ui.adsabs.harvard.edu/abs/2025arXiv250701096G/abstract>`_.
+
+ - The code should now be compatible with Numpy v2
+
+November 2025
+------------
+
+**Tuesday 18th:** Version 1.3.2 of the code has been released today.
+
+This includes a variety of new updates and bug fixes, most notably:
+
+ - The nebular models have been re-run with Cloudy v25.00 and the "grains ISM" command has been removed from the Cloudy config files used to make the grid. This is because, at high ionization parameters (e.g., logU>-2), a lot of energy was being diverted from emission lines to IR thermal radiation from warm dust grains. This was leading to significantly fainter lines in spectra with high ionization parameter (e.g., up to an order of magnitude fainter than predicted by the Kennicutt 2012 relationship). Line ratios are largely unaffected, but lines are now up to ~1 dex brighter at high ionization parameters.
+
+ - A bug in the way the Draine + Li (2007) dust emission models were implemented has been fixed. The gamma parameter was previously being incorrectly applied in a light-weighted sense rather than mass-weighted.
+
+ - The code now includes a variety of new modelling options from `Leung et al. (2024) <https://ui.adsabs.harvard.edu/abs/2024MNRAS.528.4029L/abstract>`_, including a new variety of Gaussian process noise model and various options for time-evolution of stellar metallicity.
+
+ - Improvements and bug fixes to the damped Lyman alpha system model.
+
+ - Escape fraction can now be varied with fit_info["nebular"]["fesc"], still defaults to zero.
+
+ - The `Wild et al. (2007) <https://ui.adsabs.harvard.edu/abs/2007MNRAS.381..543W/abstract>`_ dust attenuation model is now available.
+
+ - A variety of improved error/warning messages for common mistakes and issues.
+
 April 2023
 ------------
 
